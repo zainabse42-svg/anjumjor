@@ -473,21 +473,22 @@ function chatHtml(){
 }
 function toastHtml(){ return state.toast ? `<div class="toast">${state.toast}</div>` : ''; }
 
+function scrollAppTop(){ const app=document.getElementById('app'); if(app) app.scrollTop=0; }
 function bindEvents(){
   document.querySelectorAll('[data-nav="cat"]').forEach(el=>{
-    el.onclick=()=>{state.view='category'; state.activeCat=el.dataset.cat; state.activeSub=CATS[el.dataset.cat].subs[0]||null; state.shoeQuery=''; state.visibleCount=30; window.scrollTo(0,0); render();};
+    el.onclick=()=>{state.view='category'; state.activeCat=el.dataset.cat; state.activeSub=CATS[el.dataset.cat].subs[0]||null; state.shoeQuery=''; state.visibleCount=30; render(); scrollAppTop();};
   });
   document.querySelectorAll('[data-open-cat]').forEach(el=>{
-    el.onclick=()=>{const cat=el.dataset.openCat; state.view='category'; state.activeCat=cat; state.activeSub=CATS[cat].subs[0]||null; state.visibleCount=30; window.scrollTo(0,0); render();};
+    el.onclick=()=>{const cat=el.dataset.openCat; state.view='category'; state.activeCat=cat; state.activeSub=CATS[cat].subs[0]||null; state.visibleCount=30; render(); scrollAppTop();};
   });
   const logo=document.querySelector('[data-nav="home"]');
-  if(logo) logo.onclick=()=>{state.view='home'; window.scrollTo(0,0); render();};
+  if(logo) logo.onclick=()=>{state.view='home'; render(); scrollAppTop();};
   const cartNavBtn=document.getElementById('cartNavBtn');
-  if(cartNavBtn) cartNavBtn.onclick=()=>{state.view='cart'; state.orderConfirmation=null; window.scrollTo(0,0); render();};
+  if(cartNavBtn) cartNavBtn.onclick=()=>{state.view='cart'; state.orderConfirmation=null; render(); scrollAppTop();};
   const trackNavBtn=document.getElementById('trackNavBtn');
-  if(trackNavBtn) trackNavBtn.onclick=()=>{state.view='track'; window.scrollTo(0,0); render();};
+  if(trackNavBtn) trackNavBtn.onclick=()=>{state.view='track'; render(); scrollAppTop();};
   const searchNavBtn=document.getElementById('searchNavBtn');
-  if(searchNavBtn) searchNavBtn.onclick=()=>{state.view='search'; state.visibleCount=30; window.scrollTo(0,0); render();};
+  if(searchNavBtn) searchNavBtn.onclick=()=>{state.view='search'; state.visibleCount=30; render(); scrollAppTop();};
   const globalSearchInput=document.getElementById('globalSearchInput');
   if(globalSearchInput){
     globalSearchInput.oninput=(e)=>{
@@ -499,7 +500,7 @@ function bindEvents(){
   const loadMoreBtn=document.getElementById('loadMoreBtn');
   if(loadMoreBtn) loadMoreBtn.onclick=()=>{ state.visibleCount+=30; render(); };
   document.querySelectorAll('[data-nav="partner"]').forEach(el=>{
-    el.onclick=()=>{state.view='partner'; state.partnerResult=null; state.partnerCodeCheckMsg=''; window.scrollTo(0,0); render();};
+    el.onclick=()=>{state.view='partner'; state.partnerResult=null; state.partnerCodeCheckMsg=''; render(); scrollAppTop();};
   });
   const partnerCodeInput=document.getElementById('partnerCodeInput');
   if(partnerCodeInput){
@@ -535,9 +536,9 @@ function bindEvents(){
     };
   }
   const backHomeBtn=document.getElementById('backHomeBtn');
-  if(backHomeBtn) backHomeBtn.onclick=()=>{state.view='home'; state.orderConfirmation=null; state.cart=[]; state.discountCode=''; state.discountCodeValid=null; window.scrollTo(0,0); render();};
+  if(backHomeBtn) backHomeBtn.onclick=()=>{state.view='home'; state.orderConfirmation=null; state.cart=[]; state.discountCode=''; state.discountCodeValid=null; render(); scrollAppTop();};
   const goTrackBtn=document.getElementById('goTrackBtn');
-  if(goTrackBtn) goTrackBtn.onclick=()=>{state.view='track'; state.orderConfirmation=null; state.cart=[]; state.discountCode=''; state.discountCodeValid=null; window.scrollTo(0,0); render();};
+  if(goTrackBtn) goTrackBtn.onclick=()=>{state.view='track'; state.orderConfirmation=null; state.cart=[]; state.discountCode=''; state.discountCodeValid=null; render(); scrollAppTop();};
 
   document.querySelectorAll('[data-cart-minus]').forEach(el=>{
     el.onclick=()=>{ const i=parseInt(el.dataset.cartMinus); state.cart[i].qty=Math.max(1,state.cart[i].qty-1); render(); };
