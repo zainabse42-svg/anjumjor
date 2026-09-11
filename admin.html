@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أنجم — لوحة التحكم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+body{font-family:'Tajawal','Inter',sans-serif;}
+.mono{direction:ltr;unicode-bidi:embed;}
+.existing-img{position:relative;width:64px;text-align:center;}
+.existing-img img{width:64px;height:64px;object-fit:cover;border-radius:3px;border:1px solid var(--border);display:block;}
+.existing-img label{display:flex;align-items:center;justify-content:center;gap:3px;font-size:9.5px;color:var(--danger);margin-top:4px;cursor:pointer;}
+.existing-img input{width:auto;margin:0;}
+.existing-img-wrap{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="headerRoot"></div>
+<div id="app"></div>
+<script>
+/* Internal category/sub VALUES stay in English on purpose — they must match exactly what the
+   storefront (index.html) uses for filtering, and what's stored in the product data. Only the
+   LABEL shown to the admin here is Arabic. Do not translate the keys/values, only the labels. */
+const CATS = {
+  men:{label:'رجالي',subs:['All','Shirts','T-Shirts','Jeans','Sportswear','Sweatpants','Suits','National Teams']},
+  kids:{label:'أطفال',subs:['T-Shirts','Sportswear','National Teams']},
+  shoes:{label:'أحذية',subs:['Men','Women']},
+  crocs:{label:'كروكس',subs:['Men','Women','Kids']},
+  perfumes:{label:'عطور',subs:['Men','Women']},
+  underwear:{label:'داخلي',subs:['Boxers','Briefs','Undershirts']},
+  caps:{label:'طواقي',subs:[]},
+  socks:{label:'جرابين',subs:['Nike','Adidas','Puma','Classic']},
+  bags:{label:'شنط',subs:['Backpacks','Handbags','Sports Bags','Travel Bags']},
+  oneofone:{label:'قطعة فريدة',subs:[]}
+};
+const CAT_ORDER=['men','kids','shoes','crocs','perfumes','underwear','caps','socks','bags','oneofone'];
+const SUB_LABELS={
+  'All':'الكل','Shirts':'قمصان','T-Shirts':'تيشرتات','Jeans':'جينز','Sportswear':'رياضي','Sweatpants':'بنطلون رياضة','Suits':'بدلات','National Teams':'منتخبات',
+  'Men':'رجالي','Women':'نسائي','Kids':'أطفال',
+  'Boxers':'بوكسر','Briefs':'سليب','Undershirts':'فانلات',
+  'Nike':'نايك','Adidas':'أديداس','Puma':'بوما','Classic':'كلاسيك',
+  'Backpacks':'شنط ظهر','Handbags':'شنط يد','Sports Bags':'شنط رياضية','Travel Bags':'شنط سفر'
+};
+function subLabel(s){ return SUB_LABELS[s] || s; }
+const STATUS_LABELS={
+  pending:'قيد الانتظار', processing:'قيد المعالجة', shipped:'تم الشحن', delivered:'تم التسليم', cancelled:'ملغي'
+};
+const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7z"/></svg>';
+function jd(n){ return (n||0).toFixed(2)+' د.ا'; }
+
+const state={ authed:false, checked:false, tab:'add', stats:null, orders:null, codes:null, toast:null, editingProduct:null, removeImageFlags:{}, manageSearch:'', manageCatFilter:'' };
+
+async function checkAuth(){
+  try{
+    const r=await fetch('/api/admin/check');
+    const j=await r.json();
+    state.authed=!!j.authed;
+  }catch(e){ state.authed=false; }
+  state.checked=true;
+  if(state.authed) await loadStats();
+  render();
+}
+async function loadStats(){
+  try{
+    const r=await fetch('/api/stats');
+    if(r.ok) state.stats=await r.json();
+    else if(r.status===401){ state.authed=false; }
+  }catch(e){}
+}
+async function loadOrders(){
+  try{
+    const r=await fetch('/api/orders');
+    if(r.ok) state.orders=await r.json();
+    else if(r.status===401){ state.authed=false; }
+  }catch(e){}
+}
+async function loadCodes(){
+  try{
+    const r=await fetch('/api/codes');
+    if(r.ok) state.codes=await r.json();
+    else if(r.status===401){ state.authed=false; }
+  }catch(e){}
+}
+function showToast(msg){ state.toast=msg; render(); setTimeout(()=>{state.toast=null; render();},2200); }
+function sizesLabel(p){ if(typeof p.sizes==='string') return p.sizes; if(Array.isArray(p.sizes)) return p.sizes.join(' · '); return ''; }
+
+function render(){
+  const headerRoot=document.getElementById('headerRoot');
+  const app=document.getElementById('app');
+  headerRoot.innerHTML = headerHtml();
+  if(!state.checked){ return; }
+  app.innerHTML = (state.authed? bodyHtml() : gateHtml()) + toastHtml();
+  app.style.paddingTop = headerRoot.offsetHeight + 'px';
+  bind();
+}
+function headerHtml(){
+  return `<header><div class="header-inner"><div class="mark" style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:22px;letter-spacing:1px;color:var(--gold);">أنجم</div>
+  <div style="display:flex;align-items:center;gap:14px;">
+  <span style="font-size:11px;letter-spacing:1px;color:var(--muted);border:1px solid var(--border);padding:4px 10px;border-radius:2px;">لوحة التحكم</span>
+  ${state.authed?'<button id="logoutBtn" class="btn small">تسجيل خروج</button>':''}
+  </div></div></header>`;
+}
+function gateHtml(){
+  return `
+  <div class="admin-wrap">
+    <div class="gate">
+      <h1 class="display" style="font-size:26px;">إدارة المتجر</h1>
+      <input id="adminPass" type="password" placeholder="أدخل كلمة مرور الأدمن">
+      <button class="btn primary" id="adminEnter" style="width:100%;">دخول</button>
+      <div class="small-note">هاي الصفحة منفصلة تماماً عن الموقع الرئيسي ومش مرتبطة فيه. كلمة المرور محفوظة بإعدادات السيرفر، مش داخل كود الصفحة.</div>
+    </div>
+  </div>`;
+}
+function bodyHtml(){
+  return `
+  <div class="admin-wrap">
+    <div class="tabs">
+      <button data-tab="add" class="${state.tab==='add'?'active':''}">إضافة منتج</button>
+      <button data-tab="manage" class="${state.tab==='manage'?'active':''}">إدارة المنتجات</button>
+      <button data-tab="orders" class="${state.tab==='orders'?'active':''}">الطلبات</button>
+      <button data-tab="codes" class="${state.tab==='codes'?'active':''}">أكواد الخصم</button>
+      <button data-tab="analytics" class="${state.tab==='analytics'?'active':''}">التحليلات</button>
+    </div>
+    ${state.tab==='add'?addHtml():''}
+    ${state.tab==='manage'?manageHtml():''}
+    ${state.tab==='orders'?ordersHtml():''}
+    ${state.tab==='codes'?codesHtml():''}
+    ${state.tab==='analytics'?analyticsHtml():''}
+  </div>`;
+}
+function productFormFields(p){
+  p = p || {};
+  const subs = p.category ? CATS[p.category].subs : CATS[CAT_ORDER[0]].subs;
+  return `
+    <div class="field"><label>اسم المنتج (بالإنجليزي)</label><input name="name" required value="${p.name||''}"></div>
+    <div class="field"><label>السعر (بالدينار الأردني)</label><input name="price" type="number" step="0.01" required value="${p.price!=null?p.price:''}"></div>
+    <div class="field"><label>القسم</label><select name="category" id="catSelect">${CAT_ORDER.map(c=>`<option value="${c}" ${p.category===c?'selected':''}>${CATS[c].label}</option>`).join('')}</select></div>
+    <div class="field"><label>القسم الفرعي</label><select name="sub" id="subSelect">${subs.filter(s=>s!=='All').map(s=>`<option value="${s}" ${p.sub===s?'selected':''}>${subLabel(s)}</option>`).join('')}</select></div>
+    <div class="field"><label>النوع / الموديل (للأحذية فقط، اختياري)</label><input name="type" placeholder="مثلاً: رياضي، كاجوال، بوت" value="${p.type||''}"></div>
+    <div class="field"><label>المقاسات (مفصولة بفاصلة، أو اتركها فاضية لتظهر "أغلب المقاسات متوفرة")</label><input name="sizesText" placeholder="S, M, L, XL" value="${Array.isArray(p.sizes)?p.sizes.join(', '):''}"></div>
+    <div class="field"><label>الألوان (مفصولة بفاصلة، اختياري)</label><input name="colorsText" placeholder="أسود، أبيض، كحلي" value="${Array.isArray(p.colors)?p.colors.join(', '):''}"></div>
+    <div class="field full"><label>وصف المنتج (بالعربي)</label><textarea name="descAr" placeholder="اكتب وصف المنتج بالعربي...">${p.descAr||''}</textarea></div>
+    <div class="field"><label>الكمية بالمخزون</label><input name="stockQty" type="number" min="0" step="1" value="${p.stockQty!=null?p.stockQty:0}"></div>
+    <div class="field"><label>مميز</label><div class="checks"><label><input type="checkbox" name="featured" ${p.featured?'checked':''}> إظهار بالصفحة الرئيسية (بحد أقصى ٥)</label></div></div>
+  `;
+}
+function addHtml(){
+  return `
+  <form id="addProductForm">
+    <div class="form-grid">
+      ${productFormFields()}
+      <div class="field"><label>صور المنتج (اختر أكتر من صورة — وجه، ظهر، جانب...)</label><input name="images" type="file" accept="image/*" multiple></div>
+    </div>
+    <button class="btn primary" style="margin-top:18px;" type="submit">إضافة المنتج</button>
+  </form>`;
+}
+function editHtml(){
+  const p = state.editingProduct;
+  if(!p) return '';
+  const removeFlags = state.removeImageFlags;
+  return `
+  <div class="section-title">تعديل المنتج: ${p.name}</div>
+  <form id="editProductForm">
+    <div class="form-grid">
+      ${productFormFields(p)}
+      <div class="field full">
+        <label>الصور الحالية (علّم أي صورة بدك تحذفها)</label>
+        <div class="existing-img-wrap">
+          ${(p.images||[]).map(img=>`
+            <div class="existing-img">
+              <img src="${img}">
+              <label><input type="checkbox" data-remove-img="${img}" ${removeFlags[img]?'checked':''}> حذف</label>
+            </div>`).join('') || '<span class="small-note">ما في صور مرفوعة إلها.</span>'}
+        </div>
+      </div>
+      <div class="field"><label>إضافة صور جديدة (اختياري)</label><input name="images" type="file" accept="image/*" multiple></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn primary" type="submit">حفظ التعديلات</button>
+      <button class="btn" type="button" id="cancelEditBtn">إلغاء</button>
+    </div>
+  </form>`;
+}
+function manageHtml(){
+  if(state.editingProduct) return editHtml();
+  let list=state.stats ? [...state.stats.products].sort((a,b)=>b.id-a.id) : [];
+  const total=list.length;
+  const q=(state.manageSearch||'').trim().toLowerCase();
+  if(q) list=list.filter(p=>p.name.toLowerCase().includes(q));
+  if(state.manageCatFilter) list=list.filter(p=>p.category===state.manageCatFilter);
+  return `
+  <div class="manage-filters">
+    <input id="manageSearchInput" type="text" placeholder="ابحث بالاسم..." value="${state.manageSearch||''}">
+    <select id="manageCatFilter" class="field-select">
+      <option value="">كل الأقسام</option>
+      ${CAT_ORDER.map(c=>`<option value="${c}" ${state.manageCatFilter===c?'selected':''}>${CATS[c].label}</option>`).join('')}
+    </select>
+    <span class="small-note">${list.length} من ${total} منتج</span>
+  </div>
+  <div>${list.map(p=>{
+    const thumb=(p.images&&p.images.length)?p.images[0]:null;
+    const qty = p.stockQty||0;
+    return `
+    <div class="list-row">
+      <div class="rl">
+        <div class="thumb">${thumb?`<img src="${thumb}" loading="lazy">`:ICON}</div>
+        <div class="meta"><div class="n2">${p.name}</div><div class="m2">${CATS[p.category].label}${p.sub?' · '+subLabel(p.sub):''} · ${jd(p.price)} · الكمية: ${qty} · ${p.views||0} مشاهدة</div></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn small" data-edit="${p.id}">تعديل</button>
+        <button class="btn small" data-toggle-featured="${p.id}" data-current="${p.featured}">${p.featured?'إلغاء التمييز':'تمييز'}</button>
+        <button class="btn small danger" data-delete="${p.id}">حذف</button>
+      </div>
+    </div>`;
+  }).join('') || '<div class="small-note">ما في منتجات مطابقة.</div>'}</div>`;
+}
+function analyticsHtml(){
+  if(!state.stats) return '<div class="small-note">جاري التحميل...</div>';
+  const products=state.stats.products;
+  const sorted=[...products].sort((a,b)=>(b.views||0)-(a.views||0));
+  const top=sorted.slice(0,5); const low=[...sorted].reverse().slice(0,5);
+  const maxViews=Math.max(1,...products.map(p=>p.views||0));
+  return `
+  <div class="stat-row">
+    <div class="stat"><div class="n mono">${state.stats.visits}</div><div class="l">إجمالي الزيارات</div></div>
+    <div class="stat"><div class="n mono">${state.stats.totalProducts}</div><div class="l">إجمالي المنتجات</div></div>
+    <div class="stat"><div class="n mono">${state.stats.outOfStock}</div><div class="l">غير متوفر</div></div>
+    <div class="stat"><div class="n mono">${state.stats.totalViews}</div><div class="l">إجمالي المشاهدات</div></div>
+  </div>
+  <div class="section-title">الأكثر مشاهدة</div>
+  ${top.map(p=>barRow(p,maxViews)).join('') || '<div class="small-note">لا يوجد بيانات مشاهدة بعد.</div>'}
+  <div class="section-title">الأقل مشاهدة / بطيئة الحركة</div>
+  ${low.map(p=>barRow(p,maxViews)).join('')}`;
+}
+function ordersHtml(){
+  if(!state.orders) return '<div class="small-note">جاري التحميل...</div>';
+  const statuses=['pending','processing','shipped','delivered','cancelled'];
+  if(state.orders.length===0) return '<div class="small-note">لا يوجد طلبات بعد.</div>';
+  return `<div>${state.orders.map(o=>`
+    <div class="order-row">
+      <div class="order-row-top">
+        <div>
+          <span class="mono" style="color:var(--gold)">${o.orderNumber}</span>
+          <span class="m2" style="margin-right:10px;">${new Date(o.createdAt).toLocaleString('ar')}</span>
+        </div>
+        <select data-order-status="${o.id}" class="field-select" style="width:auto;">
+          ${statuses.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${STATUS_LABELS[s]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="order-row-body">
+        <div class="meta"><b>${o.customerName}</b> · ${o.phone}</div>
+        <div class="m2">${o.address}</div>
+        <div class="m2">${o.items.map(it=>`${it.name} ${it.size?'('+it.size+(it.color?', '+it.color:'')+')':''} × ${it.qty}`).join('، ')}</div>
+        <div class="m2">
+          قيمة المنتجات: <span class="mono">${jd(o.subtotal)}</span>
+          ${o.code?` · خصم كود "${o.code}": <span class="mono">-${jd(o.discountAmount)}</span>`:''}
+          · توصيل: <span class="mono">${jd(o.deliveryFee)}</span>
+          · المجموع النهائي: <span class="mono" style="color:var(--gold);">${jd(o.total)}</span>
+        </div>
+        <div class="m2">الدفع: ${o.paymentMethod==='cod'?'الدفع عند الاستلام':'تحويل كليك'}
+          ${o.cliqProof?` · <a href="${o.cliqProof}" target="_blank" style="color:var(--gold);">عرض إشعار التحويل</a>`:''}
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+function codesHtml(){
+  if(!state.codes) return '<div class="small-note">جاري التحميل...</div>';
+  if(state.codes.length===0) return '<div class="small-note">ما في أكواد مسجلة أو مستخدمة لهلق. أي حد يقدر يسجل كوده الخاص من صفحة "Become a Code Partner" بأسفل الموقع الرئيسي، وبعدين أي زبون يكتب هاد الكود وقت الدفع بياخد خصم ١٠٪ تلقائياً.</div>';
+  return `
+  <div class="small-note" style="margin-bottom:16px;">المبلغ المستحق يعني: كل كود استُخدم فيه، خصم ١٠٪ من قيمة الطلب انعطى للزبون — ونفس هاد المبلغ (١٠٪) مستحق تدفعه لصاحب الكود.</div>
+  <div>${state.codes.map(c=>`
+    <div class="order-row">
+      <div class="order-row-top">
+        <span class="mono" style="color:var(--gold);font-size:15px;">${c.code}</span>
+        <span class="m2">${c.uses} استخدام</span>
+      </div>
+      <div class="order-row-body">
+        <div class="meta">${c.registered ? `صاحب الكود: <b>${c.ownerName}</b> · ${c.ownerPhone}` : '<span style="color:var(--danger)">⚠ كود غير مسجل — ما في معلومات تواصل لصاحبه</span>'}</div>
+        <div class="m2">إجمالي قيمة الطلبات: <span class="mono">${jd(c.totalOrderValue)}</span></div>
+        <div class="meta">المبلغ المستحق لصاحب الكود: <span class="mono" style="color:var(--ok);">${jd(c.totalOwed)}</span></div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+function barRow(p,max){
+  const v=p.views||0;
+  return `<div class="bar-wrap"><div class="bar-label"><span>${p.name}</span><span class="mono">${v} مشاهدة</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,(v/max)*100)}%"></div></div></div>`;
+}
+function toastHtml(){ return state.toast?`<div class="toast">${state.toast}</div>`:''; }
+
+function bind(){
+  const enterBtn=document.getElementById('adminEnter');
+  if(enterBtn) enterBtn.onclick=async()=>{
+    const val=document.getElementById('adminPass').value;
+    try{
+      const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:val})});
+      if(r.ok){ state.authed=true; await loadStats(); render(); }
+      else { showToast('كلمة المرور غير صحيحة'); }
+    }catch(e){ showToast('خطأ بالاتصال'); }
+  };
+  const manageSearchInput=document.getElementById('manageSearchInput');
+  if(manageSearchInput){
+    manageSearchInput.oninput=(e)=>{
+      state.manageSearch=e.target.value; render();
+      const el=document.getElementById('manageSearchInput');
+      if(el){ el.focus(); el.selectionStart=el.selectionEnd=el.value.length; }
+    };
+  }
+  const manageCatFilter=document.getElementById('manageCatFilter');
+  if(manageCatFilter) manageCatFilter.onchange=(e)=>{ state.manageCatFilter=e.target.value; render(); };
+  const logoutBtn=document.getElementById('logoutBtn');
+  if(logoutBtn) logoutBtn.onclick=async()=>{
+    await fetch('/api/admin/logout',{method:'POST'});
+    state.authed=false; state.stats=null; render();
+  };
+  document.querySelectorAll('[data-tab]').forEach(el=>{
+    el.onclick=async()=>{
+      state.tab=el.dataset.tab;
+      state.editingProduct=null;
+      if(el.dataset.tab==='orders') await loadOrders();
+      else if(el.dataset.tab==='codes') await loadCodes();
+      else if(el.dataset.tab!=='add') await loadStats();
+      render();
+    };
+  });
+
+  const catSelect=document.getElementById('catSelect');
+  const subSelect=document.getElementById('subSelect');
+  function fillSubs(){
+    const c=catSelect.value; const subs=CATS[c].subs;
+    subSelect.innerHTML = subs.length ? subs.filter(s=>s!=='All').map(s=>`<option value="${s}">${subLabel(s)}</option>`).join('') : '<option value="">—</option>';
+  }
+  if(catSelect){ catSelect.onchange=fillSubs; }
+
+  const addForm=document.getElementById('addProductForm');
+  if(addForm){
+    addForm.onsubmit=async(e)=>{
+      e.preventDefault();
+      const fd=new FormData(addForm);
+      fd.set('featured', addForm.featured.checked ? 'true':'false');
+      try{
+        const r=await fetch('/api/products',{method:'POST',body:fd});
+        if(r.ok){
+          showToast('تمت إضافة المنتج');
+          addForm.reset();
+          state.tab='manage'; await loadStats(); render();
+        } else if(r.status===401){ state.authed=false; render(); }
+        else { showToast('تعذرت إضافة المنتج'); }
+      }catch(e){ showToast('خطأ بالاتصال'); }
+    };
+  }
+
+  document.querySelectorAll('[data-edit]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.dataset.edit;
+      const p=(state.stats?.products||[]).find(x=>String(x.id)===String(id));
+      state.editingProduct=p; state.removeImageFlags={};
+      render();
+    };
+  });
+  const cancelEditBtn=document.getElementById('cancelEditBtn');
+  if(cancelEditBtn) cancelEditBtn.onclick=()=>{ state.editingProduct=null; state.removeImageFlags={}; render(); };
+  document.querySelectorAll('[data-remove-img]').forEach(el=>{
+    el.onchange=()=>{
+      const img=el.dataset.removeImg;
+      state.removeImageFlags[img]=el.checked;
+    };
+  });
+  const editForm=document.getElementById('editProductForm');
+  if(editForm){
+    editForm.onsubmit=async(e)=>{
+      e.preventDefault();
+      const fd=new FormData(editForm);
+      fd.set('featured', editForm.featured.checked ? 'true':'false');
+      const toRemove=Object.keys(state.removeImageFlags).filter(k=>state.removeImageFlags[k]);
+      if(toRemove.length) fd.set('removeImages', JSON.stringify(toRemove));
+      try{
+        const r=await fetch('/api/products/'+state.editingProduct.id+'/edit',{method:'PUT',body:fd});
+        if(r.ok){
+          showToast('تم حفظ التعديلات');
+          state.editingProduct=null; state.removeImageFlags={};
+          await loadStats(); render();
+        } else if(r.status===401){ state.authed=false; render(); }
+        else { showToast('تعذر حفظ التعديلات'); }
+      }catch(e){ showToast('خطأ بالاتصال'); }
+    };
+  }
+
+  document.querySelectorAll('[data-toggle-featured]').forEach(el=>{
+    el.onclick=async()=>{
+      const id=el.dataset.toggleFeatured;
+      const current = el.dataset.current === 'true';
+      const featuredCount = (state.stats?.products||[]).filter(p=>p.featured).length;
+      if(!current && featuredCount>=5){ showToast('الحد الأقصى ٥ منتجات مميزة — الغِ تمييز واحد الأول'); return; }
+      try{
+        const r=await fetch('/api/products/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({featured: !current})});
+        if(r.ok){ await loadStats(); render(); }
+      }catch(e){ showToast('خطأ بالاتصال'); }
+    };
+  });
+  document.querySelectorAll('[data-delete]').forEach(el=>{
+    el.onclick=async()=>{
+      const id=el.dataset.delete;
+      try{
+        const r=await fetch('/api/products/'+id,{method:'DELETE'});
+        if(r.ok){ await loadStats(); render(); }
+      }catch(e){ showToast('خطأ بالاتصال'); }
+    };
+  });
+  document.querySelectorAll('[data-order-status]').forEach(el=>{
+    el.onchange=async()=>{
+      const id=el.dataset.orderStatus;
+      try{
+        const r=await fetch('/api/orders/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:el.value})});
+        if(r.ok){ showToast('تم تحديث حالة الطلب'); await loadOrders(); render(); }
+      }catch(e){ showToast('خطأ بالاتصال'); }
+    };
+  });
+}
+checkAuth();
+</script>
+</body>
+</html>

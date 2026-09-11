@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANJUM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div id="headerRoot"></div>
+<div id="app"></div>
+
+<script>
+/* ============ CONSTELLATION BACKGROUND ============ */
+(function(){
+  const c=document.getElementById('stars'),ctx=c.getContext('2d');
+  let w,h,pts=[];
+  function size(){w=c.width=window.innerWidth;h=c.height=window.innerHeight;}
+  function init(){size();pts=[];const n=Math.floor((w*h)/22000);
+    for(let i=0;i<n;i++){pts.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,tw:Math.random()*Math.PI*2});}}
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    for(const p of pts){const a=.35+.4*Math.abs(Math.sin(t/1800+p.tw));ctx.beginPath();ctx.fillStyle='rgba(122,36,54,'+a+')';ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}
+    ctx.strokeStyle='rgba(122,36,54,.10)';
+    for(let i=0;i<pts.length;i++){for(let j=i+1;j<pts.length;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<90){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke();}}}
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',init);
+  init();requestAnimationFrame(draw);
+})();
+
+const ICONS = {
+  shirt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7z"/></svg>',
+  shoe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 17h18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 17c0-3 2-4 4-6 1-1 2-3 3-3 1 2 3 3 5 3 2 0 3-1 5 0l2 6"/></svg>',
+  perfume:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M10 2h4M11 2v3h2V2M8 8h8v13a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z"/></svg>',
+  sock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 2h6v9l4 5a3 3 0 0 1-3 5H9a3 3 0 0 1-3-3V2z"/></svg>',
+  brief:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 5h16l-1 6-2 8a2 2 0 0 1-2 1.5 2 2 0 0 1-2-1.8L12 14l-1 4.7A2 2 0 0 1 9 20.5 2 2 0 0 1 7 19l-2-8z"/></svg>',
+  kid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="6" r="3"/><path d="M6 21l2-9h8l2 9M9 12v9M15 12v9"/></svg>',
+  bag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 8h12l1 13H5z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z"/></svg>',
+  cap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M2 14h20"/><path d="M14 13.5c3 .3 5.5 1 7 2"/><circle cx="12" cy="7" r="1"/></svg>',
+  brace:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="6" y="4" width="12" height="16" rx="6"/><path d="M6 10h12M6 14h12"/></svg>',
+  pillow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 8a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M9 9c1 1 1 2 0 3M15 9c-1 1-1 2 0 3"/></svg>'
+};
+function iconFor(cat){
+  if(cat==='shoes'||cat==='crocs')return ICONS.shoe;
+  if(cat==='perfumes')return ICONS.perfume;
+  if(cat==='socks')return ICONS.sock;
+  if(cat==='underwear')return ICONS.brief;
+  if(cat==='kids')return ICONS.kid;
+  if(cat==='bags')return ICONS.bag;
+  if(cat==='oneofone')return ICONS.star;
+  if(cat==='caps')return ICONS.cap;
+  return ICONS.shirt;
+}
+function gradFor(seed){
+  const grads=['linear-gradient(135deg,#e9d9ba,#dfc89d)','linear-gradient(135deg,#e3d0ab,#d6bc90)','linear-gradient(135deg,#ecdcc0,#e0cba5)','linear-gradient(135deg,#e6d5b3,#d9c295)'];
+  let h=0; for(const c of seed) h+=c.charCodeAt(0);
+  return grads[h%grads.length];
+}
+function placeholderArt(cat,name){
+  return `<div class="ph" style="background:${gradFor(name)};color:#7a2436">${iconFor(cat)}</div>`;
+}
+
+const CATS = {
+  men:{label:'Men',subs:['All','Shirts','T-Shirts','Jeans','Sportswear','Sweatpants','Suits','National Teams']},
+  kids:{label:'Kids',subs:['T-Shirts','Sportswear','National Teams']},
+  shoes:{label:'Shoes',subs:['Men','Women']},
+  crocs:{label:'Crocs',subs:['Men','Women','Kids']},
+  perfumes:{label:'Perfumes',subs:['Men','Women']},
+  underwear:{label:'Underwear',subs:['Boxers','Briefs','Undershirts']},
+  caps:{label:'Caps',subs:[]},
+  socks:{label:'Socks',subs:['Nike','Adidas','Puma','Classic']},
+  bags:{label:'Bags',subs:['Backpacks','Handbags','Sports Bags','Travel Bags']},
+  oneofone:{label:'1 of 1',subs:[]}
+};
+const CAT_ORDER=['men','kids','shoes','crocs','perfumes','underwear','caps','socks','bags','oneofone'];
+
+const state={
+  products:[], visits:0, view:'home', activeCat:null, activeSub:'All', shoeQuery:'',
+  modalProduct:null, modalImageIndex:0, modalSize:'', modalColor:'', modalQty:1, chatOpen:false,
+  chatMsgs:[{from:'bot',text:'مرحباً 👋 أنا مساعد ANJUM. اسألني عن توفر أي منتج أو مقاس، أو اضغط أحد الخيارات.'}],
+  toast:null,
+  cart:[], config:{cliqAlias:'',cliqName:''},
+  paymentMethod:'cod', orderSubmitting:false, orderConfirmation:null, discountCode:'', discountCodeValid:null,
+  trackPhone:'', trackResults:null, trackLoading:false,
+  searchQuery:'',
+  visibleCount:30,
+  partnerSubmitting:false, partnerResult:null, partnerCodeCheckMsg:''
+};
+
+async function loadData(){
+  try{
+    const r=await fetch('/api/products');
+    state.products = await r.json();
+  }catch(e){ state.products=[]; }
+  try{
+    const v=await fetch('/api/visit',{method:'POST'});
+    const j=await v.json();
+    state.visits=j.visits||0;
+  }catch(e){ state.visits=0; }
+  try{
+    const c=await fetch('/api/config');
+    state.config=await c.json();
+  }catch(e){}
+  render();
+}
+async function bumpView(id){
+  try{
+    const r=await fetch('/api/products/'+id+'/view',{method:'POST'});
+    const j=await r.json();
+    const p=state.products.find(x=>x.id===id);
+    if(p) p.views=j.views;
+  }catch(e){}
+}
+function showToast(msg){ state.toast=msg; render(); setTimeout(()=>{state.toast=null; render();},2200); }
+
+function productsFor(cat,sub,shoeQuery){
+  let list=state.products.filter(p=>p.category===cat);
+  if(sub && sub!=='All') list=list.filter(p=>p.sub===sub);
+  if(cat==='shoes' && shoeQuery){
+    const q=shoeQuery.toLowerCase();
+    list=list.filter(p=>p.name.toLowerCase().includes(q) || (p.type||'').toLowerCase().includes(q));
+  }
+  return list;
+}
+function sizesLabel(p){
+  if(typeof p.sizes==='string') return p.sizes;
+  if(Array.isArray(p.sizes)) return p.sizes.join(' · ');
+  return '';
+}
+
+function render(){
+  const headerRoot=document.getElementById('headerRoot');
+  const app=document.getElementById('app');
+  headerRoot.innerHTML = headerHtml();
+  app.innerHTML = bodyHtml() + footerHtml() + chatHtml() + modalHtml() + toastHtml();
+  app.style.paddingTop = headerRoot.offsetHeight + 'px';
+  bindEvents();
+}
+function headerHtml(){
+  const cartCount = state.cart.reduce((s,i)=>s+i.qty,0);
+  return `
+  <header>
+    <div class="header-inner">
+      <div class="logo" data-nav="home">
+        <div><div class="mark">ANJUM</div><div class="sub">STARS OF STYLE</div></div>
+      </div>
+      <nav class="main-nav">
+        ${CAT_ORDER.map(c=>`<button data-nav="cat" data-cat="${c}" class="${state.view==='category'&&state.activeCat===c?'active':''}">${CATS[c].label}</button>`).join('')}
+      </nav>
+      <div class="header-actions">
+        <span class="visits mono">VISITS ${state.visits}</span>
+        <button class="icon-btn" id="searchNavBtn" title="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+        <button class="icon-btn" id="trackNavBtn" title="Track Order">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </button>
+        <button class="icon-btn" id="cartNavBtn" title="Cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          ${cartCount?`<span class="cart-count">${cartCount}</span>`:''}
+        </button>
+      </div>
+    </div>
+  </header>`;
+}
+function footerHtml(){
+  return `<footer><div class="f-logo">ANJUM</div><div class="f-note">© 2026 Anjum Store — Men · Kids · Shoes · Perfumes · Underwear · Socks</div><a data-nav="partner" style="font-size:11px;color:var(--muted);">Become a Code Partner</a></footer>`;
+}
+function bodyHtml(){
+  if(state.view==='category') return categoryHtml();
+  if(state.view==='cart') return cartHtml();
+  if(state.view==='track') return trackHtml();
+  if(state.view==='search') return searchHtml();
+  if(state.view==='partner') return partnerHtml();
+  return homeHtml();
+}
+function homeHtml(){
+  return `
+  <section class="hero">
+    <div>
+      <div class="eyebrow">New Season Arrivals</div>
+      <h1>Dress like a <em>constellation</em>,<br>shine in every detail.</h1>
+      <p>Explore Men's, Kids', Shoes, Perfumes, Underwear, Socks and Bags — curated pieces, honest quality, sizes for everyone.</p>
+    </div>
+  </section>
+  <div class="partner-banner" data-nav="partner">
+    <div>
+      <div class="partner-banner-title">Become a Code Partner</div>
+      <div class="partner-banner-sub">Claim your own discount code — friends get 10% off, you earn 10% of every order.</div>
+    </div>
+    <span class="btn small primary">Claim Yours</span>
+  </div>
+  <div class="section-heading">Featured</div>
+  <div class="carousel" style="padding-bottom:30px;">
+    ${featuredSlots()}
+  </div>
+  <div class="section-heading">Shop by Category</div>
+  <div class="grid" style="padding-top:0;">
+    ${CAT_ORDER.map(c=>`
+      <div class="card" data-open-cat="${c}">
+        <div class="card-img">${placeholderArt(c,c)}</div>
+        <div class="card-body"><div class="brand">Collection</div><div class="name">${CATS[c].label}</div><div class="price">${productsFor(c,null,'').length} items</div></div>
+      </div>`).join('')}
+  </div>`;
+}
+function featuredSlots(){
+  const featured = state.products.filter(p=>p.featured).slice(0,5);
+  const slots=[];
+  for(let i=0;i<5;i++){
+    if(featured[i]){
+      slots.push(productCard(featured[i]));
+    }else{
+      slots.push(`<div class="card empty-slot"><div class="card-img"><div class="ph"><span>+</span></div></div><div class="card-body"><div class="name" style="color:var(--muted);">Empty Slot</div><div class="price" style="color:var(--muted);">Add a product from the admin panel</div></div></div>`);
+    }
+  }
+  return slots.join('');
+}
+function categoryHtml(){
+  const cat=state.activeCat; const meta=CATS[cat]; const subs=meta.subs;
+  const isShoes = cat==='shoes';
+  const list = productsFor(cat, subs.length ? state.activeSub : null, isShoes?state.shoeQuery:'');
+  const shown = list.slice(0, state.visibleCount);
+  const hasMore = list.length > shown.length;
+  return `
+  <section class="hero" style="padding-top:40px;padding-bottom:20px;">
+    <div><div class="eyebrow">Collection</div><h1 style="font-size:38px;">${meta.label}</h1></div>
+  </section>
+  ${subs.length ? `<div class="subnav">${subs.map(s=>`<button data-sub="${s}" class="${state.activeSub===s?'active':''}">${s}</button>`).join('')}</div>`:''}
+  ${isShoes ? `<div class="search-row"><input id="shoeSearch" type="text" placeholder="Search by model or type (e.g. Running, Casual, Boots)..." value="${state.shoeQuery}"><span class="hint">Most sizes available on all models</span></div>`:''}
+  <div class="grid">
+    ${shown.length? shown.map(p=>productCard(p)).join('') : `<div class="empty-state"><h3>No items found</h3><div>Try a different filter or search term.</div></div>`}
+  </div>
+  ${hasMore ? `<div style="text-align:center;padding-bottom:60px;position:relative;z-index:1;"><button class="btn" id="loadMoreBtn">Load More (${list.length - shown.length} more)</button></div>` : ''}`;
+}
+function productCard(p){
+  const thumb = (p.images && p.images.length) ? p.images[0] : (p.image || null);
+  return `
+  <div class="card ${p.inStock?'':'sold-out-card'}" data-open-product="${p.id}">
+    <div class="card-img">
+      ${thumb ? `<img src="${thumb}" loading="lazy">` : placeholderArt(p.category,p.name)}
+      ${p.type?`<div class="card-badge">${p.type}</div>`:''}
+      ${p.inStock ? '' : `<div class="sold-out-ribbon">Sold Out</div>`}
+    </div>
+    <div class="card-body"><div class="brand">${p.sub||CATS[p.category].label}</div><div class="name">${p.name}</div><div class="price mono">JD ${p.price}</div></div>
+  </div>`;
+}
+function cartHtml(){
+  if(state.orderConfirmation){
+    const oc=state.orderConfirmation;
+    return `
+    <section class="hero" style="padding-top:60px;">
+      <div>
+        <div class="eyebrow">Order Placed</div>
+        <h1 style="font-size:36px;">Thank you!</h1>
+        <p>Your order number is <b class="mono" style="color:var(--gold)">${oc.orderNumber}</b>. Save it — you can track your order status anytime using your phone number.</p>
+        ${oc.code ? `<p style="color:var(--ok);">Code "${oc.code}" applied — you saved JD ${oc.discountAmount.toFixed(2)}. Total paid: <b class="mono">JD ${oc.total.toFixed(2)}</b></p>` : ''}
+        <div class="modal-actions" style="margin-top:20px;">
+          <button class="btn primary" id="backHomeBtn">Continue Shopping</button>
+          <button class="btn" id="goTrackBtn">Track My Order</button>
+        </div>
+      </div>
+    </section>`;
+  }
+  const items=state.cart;
+  const subtotal=items.reduce((s,i)=>s+i.price*i.qty,0);
+  const discountActive = state.discountCodeValid===true;
+  const discount = discountActive ? Math.round(subtotal*0.10*100)/100 : 0;
+  const deliveryFee = state.config.deliveryFee!=null ? state.config.deliveryFee : 2;
+  const finalTotal = Math.round((subtotal-discount+deliveryFee)*100)/100;
+  return `
+  <section class="hero" style="padding-top:50px;padding-bottom:10px;">
+    <div><div class="eyebrow">Your Cart</div><h1 style="font-size:36px;">Cart & Checkout</h1></div>
+  </section>
+  <div class="cart-wrap">
+    ${items.length===0 ? `<div class="empty-state" style="padding:40px 0;"><h3>Your cart is empty</h3><div>Browse the collections and add something you like.</div></div>` : `
+    <div class="cart-items">
+      ${items.map((it,idx)=>`
+        <div class="cart-row">
+          <div class="cart-row-info">
+            <div class="n2">${it.name}</div>
+            <div class="m2">${it.size?('Size: '+it.size+' · '):''}${it.color?('Color: '+it.color):''}</div>
+          </div>
+          <div class="qty-stepper"><button data-cart-minus="${idx}" type="button">−</button><span>${it.qty}</span><button data-cart-plus="${idx}" type="button">+</button></div>
+          <div class="mono" style="width:70px;text-align:right;">JD ${(it.price*it.qty).toFixed(2)}</div>
+          <button class="btn small danger" data-cart-remove="${idx}">Remove</button>
+        </div>`).join('')}
+    </div>
+    <div class="field" style="max-width:320px;margin-bottom:10px;">
+      <label>Discount Code (optional)</label>
+      <input id="discountCodeInput" name="code" placeholder="Enter a partner code" value="${state.discountCode||''}" minlength="3">
+      <div class="small-note" id="discountCodeStatus" style="color:${state.discountCodeValid===true?'var(--ok)':state.discountCodeValid===false?'var(--danger)':'var(--muted)'}">
+        ${state.discountCodeValid===true?'✓ Code valid — 10% off applied below':state.discountCodeValid===false?'✕ Not a registered code':''}
+      </div>
+    </div>
+    <div class="cart-total">
+      <div style="font-size:13px;color:var(--muted);">Subtotal: <span class="mono">JD ${subtotal.toFixed(2)}</span></div>
+      ${discountActive ? `<div style="font-size:13px;color:var(--ok);">Code "${state.discountCode.trim().toUpperCase()}" applied: −10% (−JD ${discount.toFixed(2)})</div>`:''}
+      <div style="font-size:13px;color:var(--muted);">Delivery (all of Jordan): <span class="mono">JD ${deliveryFee.toFixed(2)}</span></div>
+      Total: <span class="mono" style="color:var(--gold)">JD ${finalTotal.toFixed(2)}</span>
+    </div>
+    <div class="section-title">Checkout Details</div>
+    <form id="checkoutForm">
+      <div class="form-grid">
+        <div class="field"><label>Full Name</label><input name="customerName" required></div>
+        <div class="field"><label>Phone Number</label><input name="phone" required placeholder="07XXXXXXXX"></div>
+        <div class="field full"><label>Delivery Address</label><input name="address" required></div>
+        <div class="field full">
+          <label>Payment Method</label>
+          <div class="pay-options">
+            <label class="pay-opt"><input type="radio" name="paymentMethod" value="cod" ${state.paymentMethod==='cod'?'checked':''}> Cash on Delivery</label>
+            <label class="pay-opt"><input type="radio" name="paymentMethod" value="cliq" ${state.paymentMethod==='cliq'?'checked':''}> CliQ Transfer</label>
+          </div>
+        </div>
+        ${state.paymentMethod==='cliq' ? `
+        <div class="field full">
+          <div class="cliq-box">
+            <div>Transfer the total amount to:</div>
+            <div class="mono" style="color:var(--gold);font-size:16px;margin-top:4px;">${state.config.cliqAlias}</div>
+            <div class="m2">${state.config.cliqName}</div>
+            <div class="mono" style="color:var(--gold);font-size:15px;margin-top:8px;">Amount to transfer: JD ${finalTotal.toFixed(2)}</div>
+          </div>
+        </div>
+        <div class="field full"><label>Upload Transfer Proof (screenshot)</label><input name="cliqProof" type="file" accept="image/*" required></div>`:''}
+      </div>
+      <button class="btn primary" type="submit" style="margin-top:18px;" ${state.orderSubmitting?'disabled':''}>${state.orderSubmitting?'Placing Order...':'Place Order'}</button>
+    </form>`}
+  </div>`;
+}
+function trackHtml(){
+  return `
+  <section class="hero" style="padding-top:50px;padding-bottom:10px;">
+    <div><div class="eyebrow">Order Status</div><h1 style="font-size:36px;">Track My Order</h1></div>
+  </section>
+  <div class="cart-wrap">
+    <div class="search-row" style="padding:0 0 20px;max-width:500px;">
+      <input id="trackPhoneInput" type="text" placeholder="Enter your phone number" value="${state.trackPhone}">
+      <button class="btn primary" id="trackSearchBtn" type="button">${state.trackLoading?'Searching...':'Search'}</button>
+    </div>
+    ${state.trackResults===null ? '' : state.trackResults.length===0 ? `<div class="empty-state" style="padding:20px 0;"><h3>No orders found</h3><div>Double-check the phone number you used at checkout.</div></div>` : `
+    <div class="cart-items">
+      ${state.trackResults.map(o=>`
+        <div class="order-card">
+          <div class="order-card-head">
+            <span class="mono">${o.orderNumber}</span>
+            <span class="status-badge status-${o.status}">${o.status}</span>
+          </div>
+          <div class="m2">${new Date(o.createdAt).toLocaleDateString()} · ${o.items.length} item(s) · JD ${o.total.toFixed(2)} · ${o.paymentMethod==='cod'?'Cash on Delivery':'CliQ Transfer'}</div>
+        </div>`).join('')}
+    </div>`}
+  </div>`;
+}
+function partnerHtml(){
+  if(state.partnerResult && state.partnerResult.ok){
+    return `
+    <section class="hero" style="padding-top:60px;">
+      <div>
+        <div class="eyebrow">You're In</div>
+        <h1 style="font-size:36px;">Your code is ready!</h1>
+        <p>Your code is <b class="mono" style="color:var(--gold)">${state.partnerResult.code}</b>. Share it with friends — anyone who uses it gets 10% off, and 10% of every order that uses your code is owed to you.</p>
+        <div class="modal-actions" style="margin-top:20px;"><button class="btn primary" id="backHomeBtn">Back to Shop</button></div>
+      </div>
+    </section>`;
+  }
+  return `
+  <section class="hero" style="padding-top:50px;padding-bottom:10px;">
+    <div><div class="eyebrow">Code Partner</div><h1 style="font-size:36px;">Claim Your Code</h1>
+    <p>Pick a code (3+ characters, letters and/or numbers — anything you like). Once it's yours, no one else can take it. Share it with friends: they get 10% off, and you earn 10% of every order placed with your code.</p></div>
+  </section>
+  <div class="cart-wrap">
+    <form id="partnerForm">
+      <div class="form-grid">
+        <div class="field"><label>Your Name</label><input name="name" required></div>
+        <div class="field"><label>Phone Number</label><input name="phone" required placeholder="07XXXXXXXX"></div>
+        <div class="field full">
+          <label>Your Code</label>
+          <input id="partnerCodeInput" name="code" required minlength="3" placeholder="e.g. SARA10" style="text-transform:uppercase;">
+          <div class="small-note" id="partnerCodeStatus">${state.partnerCodeCheckMsg}</div>
+        </div>
+      </div>
+      <button class="btn primary" type="submit" style="margin-top:18px;" ${state.partnerSubmitting?'disabled':''}>${state.partnerSubmitting?'Claiming...':'Claim This Code'}</button>
+    </form>
+  </div>`;
+}
+function searchHtml(){
+  const q=(state.searchQuery||'').trim().toLowerCase();
+  const results = q.length>=2 ? state.products.filter(p=>
+    p.name.toLowerCase().includes(q) ||
+    (p.sub||'').toLowerCase().includes(q) ||
+    (p.type||'').toLowerCase().includes(q) ||
+    CATS[p.category].label.toLowerCase().includes(q)
+  ) : [];
+  const shown = results.slice(0, state.visibleCount);
+  const hasMore = results.length > shown.length;
+  return `
+  <section class="hero" style="padding-top:40px;padding-bottom:10px;">
+    <div><div class="eyebrow">Search</div><h1 style="font-size:36px;">Find Something</h1></div>
+  </section>
+  <div class="search-row">
+    <input id="globalSearchInput" type="text" placeholder="Search all products by name..." value="${state.searchQuery||''}" autofocus>
+    <span class="hint">${q.length>=2 ? results.length+' result(s)' : 'Type at least 2 characters'}</span>
+  </div>
+  <div class="grid">
+    ${q.length<2 ? '' : shown.length ? shown.map(p=>productCard(p)).join('') : `<div class="empty-state"><h3>No matches</h3><div>Try a different word.</div></div>`}
+  </div>
+  ${hasMore ? `<div style="text-align:center;padding-bottom:60px;position:relative;z-index:1;"><button class="btn" id="loadMoreBtn">Load More (${results.length - shown.length} more)</button></div>` : ''}`;
+}
+function modalHtml(){
+  if(!state.modalProduct) return '';
+  const p=state.modalProduct;
+  const images = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+  const hasMulti = images.length>1;
+  const current = images[state.modalImageIndex] || null;
+  return `
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <button class="modal-close" id="closeModal">✕</button>
+      <div class="modal-content">
+        <div class="modal-img-wrap">
+          <div class="modal-img">${current ? `<img src="${current}" style="width:100%;height:100%;object-fit:cover">` : placeholderArt(p.category,p.name)}</div>
+          ${hasMulti ? `
+          <button class="gallery-arrow left" id="galPrev">‹</button>
+          <button class="gallery-arrow right" id="galNext">›</button>
+          <div class="gallery-thumbs">
+            ${images.map((img,i)=>`<div class="gthumb ${i===state.modalImageIndex?'active':''}" data-thumb-idx="${i}"><img src="${img}"></div>`).join('')}
+          </div>`:''}
+        </div>
+        <div class="modal-info">
+          <div class="brand">${p.sub||CATS[p.category].label}${p.type?' · '+p.type:''}</div>
+          <h2>${p.name}</h2>
+          <div class="price">JD ${p.price}</div>
+          ${(p.colors && p.colors.length) ? `
+          <div class="sizes"><b>Color:</b></div>
+          <select id="colorSelect" class="field-select">${p.colors.map(c=>`<option value="${c}" ${state.modalColor===c?'selected':''}>${c}</option>`).join('')}</select>`:''}
+          ${Array.isArray(p.sizes) ? `
+          <div class="sizes"><b>Size:</b></div>
+          <select id="sizeSelect" class="field-select">${p.sizes.map(s=>`<option value="${s}" ${state.modalSize===s?'selected':''}>${s}</option>`).join('')}</select>`
+          : `<div class="sizes"><b>Sizes:</b> ${sizesLabel(p)}</div>`}
+          <div class="sizes"><b>Status:</b> ${p.inStock?'<span style="color:var(--ok)">In Stock</span>':'<span style="color:var(--danger)">Sold Out</span>'}</div>
+          <div class="desc-label">Product Description</div>
+          <div class="desc">${p.descAr||'لا يوجد وصف متاح لهذا المنتج حالياً.'}</div>
+          <div class="qty-row">
+            <span class="sizes"><b>Qty:</b></span>
+            <div class="qty-stepper"><button id="qtyMinus" type="button">−</button><span id="qtyVal">${state.modalQty}</span><button id="qtyPlus" type="button">+</button></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn primary" id="addToCartBtn" ${p.inStock?'':'disabled'}>${p.inStock?'Add to Cart':'Sold Out'}</button>
+            <button class="btn" id="askAboutBtn">Ask About This Item</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function chatHtml(){
+  return `
+  <button class="chat-fab" id="chatFab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>
+  ${state.chatOpen?`
+  <div class="chat-panel">
+    <div class="chat-head"><div><div class="t">ANJUM Assistant</div><div class="s">● Online</div></div><button id="closeChat" style="background:none;border:none;color:var(--muted);font-size:16px;">✕</button></div>
+    <div class="chat-body" id="chatBody">${state.chatMsgs.map(m=>`<div class="msg ${m.from==='bot'?'bot':'user'}">${m.text}</div>`).join('')}</div>
+    <div class="chat-quick">
+      <button data-quick="stock">Check item availability</button>
+      <button data-quick="size">Ask about sizing</button>
+      <button data-quick="human">Talk to a person</button>
+    </div>
+    <div class="chat-input"><input id="chatInput" type="text" placeholder="اكتب رسالتك هنا..."><button id="chatSend">Send</button></div>
+  </div>`:''}`;
+}
+function toastHtml(){ return state.toast ? `<div class="toast">${state.toast}</div>` : ''; }
+
+function bindEvents(){
+  document.querySelectorAll('[data-nav="cat"]').forEach(el=>{
+    el.onclick=()=>{state.view='category'; state.activeCat=el.dataset.cat; state.activeSub=CATS[el.dataset.cat].subs[0]||null; state.shoeQuery=''; state.visibleCount=30; window.scrollTo(0,0); render();};
+  });
+  document.querySelectorAll('[data-open-cat]').forEach(el=>{
+    el.onclick=()=>{const cat=el.dataset.openCat; state.view='category'; state.activeCat=cat; state.activeSub=CATS[cat].subs[0]||null; state.visibleCount=30; window.scrollTo(0,0); render();};
+  });
+  const logo=document.querySelector('[data-nav="home"]');
+  if(logo) logo.onclick=()=>{state.view='home'; window.scrollTo(0,0); render();};
+  const cartNavBtn=document.getElementById('cartNavBtn');
+  if(cartNavBtn) cartNavBtn.onclick=()=>{state.view='cart'; state.orderConfirmation=null; window.scrollTo(0,0); render();};
+  const trackNavBtn=document.getElementById('trackNavBtn');
+  if(trackNavBtn) trackNavBtn.onclick=()=>{state.view='track'; window.scrollTo(0,0); render();};
+  const searchNavBtn=document.getElementById('searchNavBtn');
+  if(searchNavBtn) searchNavBtn.onclick=()=>{state.view='search'; state.visibleCount=30; window.scrollTo(0,0); render();};
+  const globalSearchInput=document.getElementById('globalSearchInput');
+  if(globalSearchInput){
+    globalSearchInput.oninput=(e)=>{
+      state.searchQuery=e.target.value; state.visibleCount=30; render();
+      const el=document.getElementById('globalSearchInput');
+      if(el){ el.focus(); el.selectionStart=el.selectionEnd=el.value.length; }
+    };
+  }
+  const loadMoreBtn=document.getElementById('loadMoreBtn');
+  if(loadMoreBtn) loadMoreBtn.onclick=()=>{ state.visibleCount+=30; render(); };
+  document.querySelectorAll('[data-nav="partner"]').forEach(el=>{
+    el.onclick=()=>{state.view='partner'; state.partnerResult=null; state.partnerCodeCheckMsg=''; window.scrollTo(0,0); render();};
+  });
+  const partnerCodeInput=document.getElementById('partnerCodeInput');
+  if(partnerCodeInput){
+    let codeCheckTimer=null;
+    partnerCodeInput.oninput=(e)=>{
+      const val=e.target.value;
+      clearTimeout(codeCheckTimer);
+      if(val.trim().length<3){ document.getElementById('partnerCodeStatus').textContent=''; return; }
+      codeCheckTimer=setTimeout(async()=>{
+        try{
+          const r=await fetch('/api/code-owners/check?code='+encodeURIComponent(val.trim()));
+          const j=await r.json();
+          const el=document.getElementById('partnerCodeStatus');
+          if(el) el.textContent = j.available ? '✓ Available' : '✕ Already taken, try another';
+          if(el) el.style.color = j.available ? 'var(--ok)' : 'var(--danger)';
+        }catch(err){}
+      },400);
+    };
+  }
+  const partnerForm=document.getElementById('partnerForm');
+  if(partnerForm){
+    partnerForm.onsubmit=async(e)=>{
+      e.preventDefault();
+      state.partnerSubmitting=true; render();
+      const fd=new FormData(partnerForm);
+      try{
+        const r=await fetch('/api/code-owners',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:fd.get('name'),phone:fd.get('phone'),code:fd.get('code')})});
+        const j=await r.json();
+        state.partnerSubmitting=false;
+        if(r.ok){ state.partnerResult=j; render(); }
+        else{ showToast(j.error||'Could not claim code'); }
+      }catch(err){ state.partnerSubmitting=false; showToast('Connection error'); }
+    };
+  }
+  const backHomeBtn=document.getElementById('backHomeBtn');
+  if(backHomeBtn) backHomeBtn.onclick=()=>{state.view='home'; state.orderConfirmation=null; state.cart=[]; state.discountCode=''; state.discountCodeValid=null; window.scrollTo(0,0); render();};
+  const goTrackBtn=document.getElementById('goTrackBtn');
+  if(goTrackBtn) goTrackBtn.onclick=()=>{state.view='track'; state.orderConfirmation=null; state.cart=[]; state.discountCode=''; state.discountCodeValid=null; window.scrollTo(0,0); render();};
+
+  document.querySelectorAll('[data-cart-minus]').forEach(el=>{
+    el.onclick=()=>{ const i=parseInt(el.dataset.cartMinus); state.cart[i].qty=Math.max(1,state.cart[i].qty-1); render(); };
+  });
+  document.querySelectorAll('[data-cart-plus]').forEach(el=>{
+    el.onclick=()=>{ const i=parseInt(el.dataset.cartPlus); state.cart[i].qty=Math.min(10,state.cart[i].qty+1); render(); };
+  });
+  document.querySelectorAll('[data-cart-remove]').forEach(el=>{
+    el.onclick=()=>{ const i=parseInt(el.dataset.cartRemove); state.cart.splice(i,1); render(); };
+  });
+  document.querySelectorAll('input[name="paymentMethod"]').forEach(el=>{
+    el.onchange=(e)=>{ state.paymentMethod=e.target.value; render(); };
+  });
+  const discountCodeInput=document.getElementById('discountCodeInput');
+  if(discountCodeInput){
+    let discountCheckTimer=null;
+    discountCodeInput.oninput=(e)=>{
+      const val=e.target.value;
+      state.discountCode=val;
+      state.discountCodeValid=null;
+      render();
+      const el=document.getElementById('discountCodeInput');
+      if(el){ el.focus(); el.selectionStart=el.selectionEnd=el.value.length; }
+      clearTimeout(discountCheckTimer);
+      if(val.trim().length<3) return;
+      discountCheckTimer=setTimeout(async()=>{
+        try{
+          const r=await fetch('/api/code-owners/check?code='+encodeURIComponent(val.trim()));
+          const j=await r.json();
+          if(state.discountCode.trim().toLowerCase()!==val.trim().toLowerCase()) return; // input changed since this check started
+          state.discountCodeValid = !j.available; // available:false means the code IS registered
+          render();
+        }catch(err){}
+      },400);
+    };
+  }
+  const checkoutForm=document.getElementById('checkoutForm');
+  if(checkoutForm){
+    checkoutForm.onsubmit=async(e)=>{
+      e.preventDefault();
+      state.orderSubmitting=true; render();
+      const fd=new FormData(checkoutForm);
+      fd.set('itemsJSON', JSON.stringify(state.cart.map(i=>({productId:i.productId,qty:i.qty,size:i.size,color:i.color}))));
+      fd.set('code', state.discountCode || '');
+      try{
+        const r=await fetch('/api/orders',{method:'POST',body:fd});
+        const j=await r.json();
+        if(r.ok){
+          state.orderConfirmation=j;
+          state.orderSubmitting=false;
+          state.discountCode=''; state.discountCodeValid=null;
+          render();
+        }else{
+          state.orderSubmitting=false;
+          showToast(j.error||'Could not place order');
+        }
+      }catch(err){ state.orderSubmitting=false; showToast('Connection error'); }
+    };
+  }
+  const trackSearchBtn=document.getElementById('trackSearchBtn');
+  const trackPhoneInput=document.getElementById('trackPhoneInput');
+  if(trackSearchBtn) trackSearchBtn.onclick=async()=>{
+    const phone=(trackPhoneInput.value||'').trim();
+    if(!phone) return;
+    state.trackPhone=phone; state.trackLoading=true; render();
+    try{
+      const r=await fetch('/api/orders/track?phone='+encodeURIComponent(phone));
+      state.trackResults = r.ok ? await r.json() : [];
+    }catch(e){ state.trackResults=[]; }
+    state.trackLoading=false; render();
+  };
+  if(trackPhoneInput) trackPhoneInput.onkeydown=(e)=>{ if(e.key==='Enter' && trackSearchBtn) trackSearchBtn.onclick(); };
+
+  document.querySelectorAll('[data-sub]').forEach(el=>{ el.onclick=()=>{state.activeSub=el.dataset.sub; state.visibleCount=30; render();}; });
+  const shoeSearch=document.getElementById('shoeSearch');
+  if(shoeSearch){ shoeSearch.oninput=(e)=>{state.shoeQuery=e.target.value; render(); const el=document.getElementById('shoeSearch'); if(el){el.focus(); el.selectionStart=el.selectionEnd=el.value.length;}}; }
+  document.querySelectorAll('[data-open-product]').forEach(el=>{
+    el.onclick=()=>{const id=parseInt(el.dataset.openProduct); const p=state.products.find(x=>x.id===id); if(p){
+      bumpView(id); state.modalProduct=p; state.modalImageIndex=0; state.modalQty=1;
+      state.modalColor = (p.colors && p.colors.length) ? p.colors[0] : '';
+      state.modalSize = Array.isArray(p.sizes) && p.sizes.length ? p.sizes[0] : (typeof p.sizes==='string'?p.sizes:'');
+      render();
+    }};
+  });
+  const closeModal=document.getElementById('closeModal');
+  if(closeModal) closeModal.onclick=()=>{state.modalProduct=null; render();};
+  const overlay=document.getElementById('overlay');
+  if(overlay) overlay.onclick=(e)=>{if(e.target.id==='overlay'){state.modalProduct=null; render();}};
+  const galPrev=document.getElementById('galPrev');
+  const galNext=document.getElementById('galNext');
+  function imgCount(){ const p=state.modalProduct; return (p.images&&p.images.length)?p.images.length:(p.image?1:0); }
+  if(galPrev) galPrev.onclick=()=>{ const n=imgCount(); state.modalImageIndex=(state.modalImageIndex-1+n)%n; render(); };
+  if(galNext) galNext.onclick=()=>{ const n=imgCount(); state.modalImageIndex=(state.modalImageIndex+1)%n; render(); };
+  document.querySelectorAll('[data-thumb-idx]').forEach(el=>{
+    el.onclick=()=>{ state.modalImageIndex=parseInt(el.dataset.thumbIdx); render(); };
+  });
+  const askBtn=document.getElementById('askAboutBtn');
+  if(askBtn) askBtn.onclick=()=>{const p=state.modalProduct; state.modalProduct=null; state.chatOpen=true; askAvailability(p.name); render();};
+  const colorSelect=document.getElementById('colorSelect');
+  if(colorSelect) colorSelect.onchange=(e)=>{ state.modalColor=e.target.value; };
+  const sizeSelect=document.getElementById('sizeSelect');
+  if(sizeSelect) sizeSelect.onchange=(e)=>{ state.modalSize=e.target.value; };
+  const qtyMinus=document.getElementById('qtyMinus');
+  const qtyPlus=document.getElementById('qtyPlus');
+  if(qtyMinus) qtyMinus.onclick=()=>{ state.modalQty=Math.max(1,state.modalQty-1); document.getElementById('qtyVal').textContent=state.modalQty; };
+  if(qtyPlus) qtyPlus.onclick=()=>{ state.modalQty=Math.min(10,state.modalQty+1); document.getElementById('qtyVal').textContent=state.modalQty; };
+  const addToCartBtn=document.getElementById('addToCartBtn');
+  if(addToCartBtn) addToCartBtn.onclick=()=>{
+    const p=state.modalProduct;
+    const size=state.modalSize, color=state.modalColor, qty=state.modalQty;
+    const existing=state.cart.find(i=>i.productId===p.id && i.size===size && i.color===color);
+    if(existing){ existing.qty+=qty; }
+    else{ state.cart.push({productId:p.id,name:p.name,price:p.price,category:p.category,qty,size,color}); }
+    state.modalProduct=null;
+    showToast('Added to cart');
+  };
+  const chatFab=document.getElementById('chatFab');
+  if(chatFab) chatFab.onclick=()=>{state.chatOpen=!state.chatOpen; render(); scrollChat();};
+  const closeChat=document.getElementById('closeChat');
+  if(closeChat) closeChat.onclick=()=>{state.chatOpen=false; render();};
+  const chatSend=document.getElementById('chatSend');
+  const chatInput=document.getElementById('chatInput');
+  if(chatSend) chatSend.onclick=sendChat;
+  if(chatInput) chatInput.onkeydown=(e)=>{if(e.key==='Enter') sendChat();};
+  document.querySelectorAll('[data-quick]').forEach(el=>{
+    el.onclick=()=>{const k=el.dataset.quick;
+      if(k==='stock') pushUserMsg('بدي أعرف إذا منتج معين متوفر');
+      if(k==='size') pushUserMsg('بدي أسأل عن المقاسات');
+      if(k==='human') pushUserMsg('بدي أحكي مع موظف');
+      botReply(k);
+    };
+  });
+  scrollChat();
+}
+function pushUserMsg(t){ state.chatMsgs.push({from:'user',text:t}); }
+function pushBotMsg(t){ state.chatMsgs.push({from:'bot',text:t}); }
+function scrollChat(){ setTimeout(()=>{const b=document.getElementById('chatBody'); if(b) b.scrollTop=b.scrollHeight;},30); }
+function askAvailability(name){
+  pushUserMsg('هل '+name+' متوفر؟');
+  const p=state.products.find(x=>x.name===name);
+  if(p){ pushBotMsg(p.inStock ? `نعم، "${p.name}" متوفر حالياً. المقاسات: ${sizesLabel(p)}.` : `للأسف "${p.name}" غير متوفر حالياً، بيرجع يتوفر قريباً إن شاء الله.`); }
+  render(); scrollChat();
+}
+function botReply(kind){
+  if(kind==='stock') pushBotMsg('اكتب اسم المنتج أو الموديل وبتحقق لك من التوفر مباشرة.');
+  else if(kind==='size') pushBotMsg('معظم منتجاتنا متوفرة بكل المقاسات تقريباً، اكتب اسم المنتج وبقلك المقاسات المتوفرة بالتفصيل.');
+  else if(kind==='human') pushBotMsg('تمام، رح نحولك لموظف خدمة الزبائن على الواتساب قريباً — لهلق فريقنا موجود لأي استفسار إضافي هون بالشات.');
+  render(); scrollChat();
+}
+function sendChat(){
+  const input=document.getElementById('chatInput'); const text=input.value.trim(); if(!text) return;
+  pushUserMsg(text); input.value=''; render();
+  const q=text.toLowerCase();
+  const match = state.products.find(p=> text.includes(p.name) || p.name.toLowerCase().split(' ').some(w=>w.length>3 && text.toLowerCase().includes(w.toLowerCase())) );
+  setTimeout(()=>{
+    if(match){ pushBotMsg(match.inStock ? `"${match.name}" متوفر حالياً بسعر ${match.price} دينار. المقاسات: ${sizesLabel(match)}.` : `"${match.name}" غير متوفر حالياً، منقدر نعلمك لما يرجع يتوفر.`); }
+    else if(q.includes('مقاس') || q.includes('size')){ pushBotMsg('غالبية منتجاتنا متوفرة بكل المقاسات. اكتب اسم المنتج المحدد عشان أتأكد لك من المقاسات المتوفرة بالضبط.'); }
+    else if(q.includes('توصيل') || q.includes('شحن')){ pushBotMsg('عنا توصيل لجميع المناطق، مدة التوصيل عادة بين ٢-٤ أيام عمل.'); }
+    else { pushBotMsg('ما لقيت هالمنتج بالضبط بقائمتنا، ممكن تعطيني اسم أوضح أو تتصفح قسم المنتج من فوق؟ وبقدر أيضاً أوصلك بموظف حقيقي إذا حبيت.'); }
+    render(); scrollChat();
+  },500);
+}
+loadData();
+</script>
+</body>
+</html>
